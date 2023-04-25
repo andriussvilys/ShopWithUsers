@@ -1,0 +1,13 @@
+1) categories/:name
+ to be: categories/:id
+
+
+2) categories/:id?expand=products
+
+categroies{
+	
+	name: ...
+`	...
+	products : [...]
+
+}

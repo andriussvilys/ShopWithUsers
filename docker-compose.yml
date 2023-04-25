@@ -1,0 +1,25 @@
+version: "3"
+
+services:
+  
+  mongo:
+    image: mongo:4.4.6
+    container_name: mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    ports:
+      - "27017:27017"
+
+  express_server:
+    container_name: express_server
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: example
+      ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
+    build: ./express_app
+    ports:
+      - "80:80"
+    depends_on:
+      - mongo
+
