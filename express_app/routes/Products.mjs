@@ -18,8 +18,6 @@ const products = db.collection('products');
 
 router.get('/', async (req, res) => {
 
-    console.log("GET  MANY")
-    // products.find(req.query, req.params).toArray()
     const options = {}
 
     products.find( req.query, options ).toArray()
@@ -45,7 +43,6 @@ router.post('/', (req, res) => {
         })
     
         .catch( err => {
-            console.error(err);
             res.status(500).send({"error": err.message})
         })
 
@@ -106,7 +103,7 @@ router.put('/', (req, res) => {
                 )
         })
 
-        updateData.forEach(item => console.log(item))
+        // updateData.forEach(item => console.log(item))
 
         products.bulkWrite(updateData)
         .then(bulkWriteResponse => {

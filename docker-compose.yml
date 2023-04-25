@@ -10,6 +10,10 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: example
     ports:
       - "27017:27017"
+    depends_on: 
+      - contacts
+    networks:
+      - shop-network
 
   express_server:
     container_name: express_server
@@ -22,4 +26,17 @@ services:
       - "80:80"
     depends_on:
       - mongo
+    networks:
+      - shop-network
 
+  contacts:
+    container_name: contacts
+    build: ./contacts
+    ports:
+      - "5000:5000"
+    networks:
+      - shop-network
+
+networks:
+  shop-network:
+    driver: bridge

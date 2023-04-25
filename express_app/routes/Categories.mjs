@@ -35,7 +35,6 @@ router.get('/', async (req, res) => {
         res.send({data: [...value]})
     })
     .catch((err) => {
-        console.log(err);
         res.status(500).send({"error": err.message})
     })
 
@@ -43,14 +42,9 @@ router.get('/', async (req, res) => {
 
 router.post('/', (req, res) => {
 
-    console.log(req)
-    console.log(req.body)
-
     const options = {}
 
     if( Array.isArray(req.body)){
-        console.log('insert MANY category')
-        console.log(req.body)
 
         categories.insertMany(req.body, options)
         .then( value => {
@@ -64,8 +58,6 @@ router.post('/', (req, res) => {
     }
 
     else{
-        console.log('insert ONE category')
-        console.log(req.body)
         categories.insertOne(req.body)
 
         .then( value => {
@@ -147,14 +139,10 @@ router.get('/:id', async (req, res) => {
     
         categoryResult = await getCategoryById(req.params.id)
         if(req.query.expand && req.query.expand == "products"){
-            console.log("expand products")
             const productsResult = await products.find( {category: categoryResult.name} ).toArray()
         
             categoryResult = {...categoryResult, products : productsResult}
         }
-        // else{
-        //     categoryResult = await getCategoryById(req.params.id)
-        // }
     
         res.status(200).send( {data : {...categoryResult}} )
     }
@@ -169,7 +157,6 @@ router.patch('/:id', (req, res) => {
 
     const options = {}
     const query = {_id : new ObjectId(req.params.id), ...req.params.query}
-    console.log(query)
 
     categories.updateOne(query, {$set : req.body}, options)
     .then( value => {
@@ -185,7 +172,6 @@ router.patch('/:id', (req, res) => {
 router.put('/:id', (req, res) => {
 
     const query = {_id : new ObjectId(req.params.id), ...req.params.query}
-    console.log(query)
 
     categories.replaceOne(query, req.body, {upsert: true})
     .then( value => {

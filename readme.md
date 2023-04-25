@@ -1,20 +1,24 @@
 # RESTful Shop API in Docker Container
-
-- Express.js + mongodb API
+Shop contains products, products have categories and contacts (suppliers)
+- Express.js + mongodb API + PostgresAPI
 - Uses official Mongo image
 - No database schema
 - CRUD operations 
 - HTTP methods: GET, POST, PUT, PATCH, DELETE
 - Resources:\
 -- Products \
--- Categories
+-- Categories \
+-- Contacts
 - URLS:
 -- GET/POST/PUT/PATCH/DELETE /products\
 -- GET/POST/PUT/PATCH/DELETE /categories\
 -- GET/PUT/PATCH/DELETE /products/:id\
 -- GET/PUT/PATCH/DELETE /categories/:id\
 -- GET/PUT/PATCH/DELETE /categories/:id/products\
--- GET /categories/:id?expand=products
+-- GET /categories/:id?expand=products \
+-- GET/POST /contacts \
+-- GET/PUT/DELTE /contacts/:id
+-- GET /contacts/:id?expand=products
 - uses PORT 80
 
 ### LAUNCH CONTAINER

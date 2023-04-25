@@ -11,10 +11,8 @@ const products = db.collection('products');
 
 router.get('/:id', async (req, res) => {
 
-    console.log("GET ONE")
 
     const query = {_id: new ObjectId(req.params.id), ...req.params.query}
-    console.log(query)
 
     products.findOne(query, {})
     .then( value => {
@@ -31,7 +29,6 @@ router.patch('/:id', (req, res) => {
 
     const options = {}
     const query = {_id : new ObjectId(req.params.id), ...req.params.query}
-    console.log(query)
 
     products.updateOne(query, {$set : req.body}, options)
     .then( value => {
@@ -47,7 +44,6 @@ router.patch('/:id', (req, res) => {
 router.put('/:id', (req, res) => {
 
     const query = {_id : new ObjectId(req.params.id), ...req.params.query}
-    console.log(query)
 
     products.replaceOne(query, req.body, {upsert: true})
     .then( value => {
