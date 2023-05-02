@@ -1,5 +1,6 @@
 # RESTful Shop API in Docker Container
 Shop contains products, products have categories and contacts (suppliers)
+
 - Express.js + mongodb API + PostgresAPI
 - Uses official Mongo image
 - No database schema
@@ -21,10 +22,29 @@ Shop contains products, products have categories and contacts (suppliers)
 -- GET /contacts/:id?expand=products
 - uses PORT 80
 
+sample contact resource data:
+{
+    "id": 12345,
+    "surname": "Vangogh",
+    "name": "Jake",
+    "number": "+37065841738",
+    "email": "jakevan@mail.com"
+}
+
+For contacts resource, all columns are mandatory.
+To post/put contact, id and at least one other column must be unique
+
 ### LAUNCH CONTAINER
 
+
+```sh
+git clone https://github.com/andriussvilys/ShopWithUsers
+```
 ```sh
 cd [inside cloned git repo directory]
+```
+```sh
+git submodule add https://github.com/augkik/contacts.git
 ```
 _then_
 ```sh
