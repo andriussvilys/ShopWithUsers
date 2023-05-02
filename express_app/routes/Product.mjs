@@ -16,7 +16,7 @@ router.get('/:id', async (req, res) => {
 
     products.findOne(query, {})
     .then( value => {
-        res.status(200).send( {data : {...value}} )
+        res.status(200).send( value )
     })
 
     .catch((err) => {
@@ -25,37 +25,53 @@ router.get('/:id', async (req, res) => {
 
 })
 
-router.patch('/:id', (req, res) => {
+router.patch('/:id', async (req, res) => {
 
-    const options = {}
-    const query = {_id : new ObjectId(req.params.id), ...req.params.query}
+    try{
 
-    products.updateOne(query, {$set : req.body}, options)
-    .then( value => {
-        res.status(200).send( { data: {...value} } )
-    }) 
+        const options = {}
+        const query = {_id : new ObjectId(req.params.id), ...req.params.query}
+    
+        let updatedDoc = {};
 
-    .catch(err => {
+        const updateRes = await products.updateOne(query, {$set : req.body}, options)
+        
+        if(updateRes.modifiedCount > 0){
+            updatedDoc = await products.findOne({_id : new ObjectId(req.params.id)})
+        }
+
+        res.status(200).send( updatedDoc )
+
+    }
+    catch(err){
         res.status(500).send( { error: err.message } );
-    })
+    }
+
 
 })
 
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
 
-    const query = {_id : new ObjectId(req.params.id), ...req.params.query}
+    try{
 
-    products.replaceOne(query, req.body, {upsert: true})
-    .then( value => {
+        
+        const query = {_id : new ObjectId(req.params.id), ...req.params.query}
+        const replaceRes = await products.replaceOne(query, req.body, {upsert: true})
+        
+        let updatedDoc = {}
+        if(replaceRes.modifiedCount > 0 || replaceRes.upsertedCount > 0){
+            updatedDoc = await products.findOne({_id : new ObjectId(req.params.id)})
+            console.log("updatedDoc")
+            console.log(updatedDoc)
+        }
 
-        res.status(200).send({data: {...value}})
-
-    })
-
-    .catch( err => {
-        res.status(500).send({"error": err.message})
-    })
+        res.status(200).send( updatedDoc )
+    }
     
+    catch(err){
+        res.status(500).send({ "error" : err.message})
+    }
+
 })
 
 router.delete('/:id', (req, res) => {
@@ -63,9 +79,9 @@ router.delete('/:id', (req, res) => {
     const query = {_id: new ObjectId(req.params.id), ...req.params.query}
     
     products.deleteOne(query)
-    .then( value => {
+    .then( delete_res => {
 
-        res.status(200).send( { data: {...value} } )
+        res.status(200).send( delete_res )
     })
 
     .catch( err => {

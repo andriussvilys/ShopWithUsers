@@ -1,8 +1,100 @@
 import express from 'express'
 import db from '../conn.mjs'
+import {createContact, getContact} from './Contacts/Contacts.mjs'
+import { ObjectId } from 'mongodb';
 
 const router = express.Router();
 const products = db.collection('products');
+
+const createResponseBody = async (ids) => {
+    console.log(ids)
+    return await Promise.all(
+        
+        ids.map(async (_id) => {
+            return await products.findOne({_id})
+        })
+    )
+
+}
+
+const isContactIdUnique = async (newId) => {
+    try{
+        const currentContacts = await getContact();
+
+        const currentIds = currentContacts.data.map(contact => {return contact.id});
+
+        const uniqueId = currentIds.find(currentId => currentId == newId)
+
+        return !uniqueId ? true : false;
+    }
+    catch(err){
+        const status = err.status ? err.status : 500
+        const message = err.message ? err.message : "Could not get contact details."
+        throw({message, status})
+    }
+}
+
+const validateNewProduct = async (product) => {
+
+    try{
+        let validatedProduct = product;
+        if(product.supplier){
+    
+            const uniqueId = await isContactIdUnique(product.supplier.id)
+            console.log(`uniqueId ${product.supplier.id} : ${uniqueId}`)
+            if(uniqueId){
+                const createContactRes = await createContact(product.supplier)
+                validatedProduct.supplier = createContactRes.data
+            }
+            else{
+                const getContactRes = await getContact(product.supplier.id)
+                validatedProduct.supplier = getContactRes.data
+            }
+        }
+        return validatedProduct
+    }
+    catch(err){
+        const status = err.status ? err.status : 500
+        throw({"message": err.message, status})
+    }
+}
+
+const createProduct = async (reqBody) => {
+    const options = {}
+    console.log("createProduct : ---------------------------")
+    console.log(reqBody)
+    try{
+
+        if( Array.isArray(reqBody)){
+
+            const validatedReqBody = await Promise.all(
+                reqBody.map(async (product) => await validateNewProduct(product))
+                );
+
+            const insertRes = await products.insertMany(validatedReqBody, options)
+            const insertedIds = Object.values(insertRes.insertedIds)
+
+            const resBody =  await createResponseBody(insertedIds)
+            
+            return resBody
+        }
+    
+        else{
+
+            const validatedReqBody = await validateNewProduct(reqBody)
+            const insertRes = await  products.insertOne(validatedReqBody)
+            const resBody = await  createResponseBody([insertRes.insertedId])
+
+            return resBody
+
+        }
+    }
+    catch(err){
+        // const status = err.status ? err.status : 500
+        const status = 500
+        throw({status, "message" : err.message})
+    }
+}
 
 // 2XX — Success
     // 201 — Created
@@ -22,8 +114,8 @@ router.get('/', async (req, res) => {
 
     products.find( req.query, options ).toArray()
 
-    .then( value => {
-        res.status(200).send({data: [...value]})
+    .then( find_res => {
+        res.status(200).send( find_res )
     })
     .catch((err) => {
         res.status(500).send({"error": err.message})
@@ -31,92 +123,79 @@ router.get('/', async (req, res) => {
 
 })
 
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
 
     const options = {}
-
-    if( Array.isArray(req.body)){
-
-        products.insertMany(req.body, options)
-        .then( value => {
-            res.status(200).send( {data: {...value}} )
-        })
-    
-        .catch( err => {
-            res.status(500).send({"error": err.message})
-        })
-
+    // if array of products provided in req.body
+    try{
+        const resBody = await createProduct(req.body)
+        res.status(201).send( resBody )
     }
-
-    else{
-        products.insertOne(req.body)
-
-        .then( value => {
-            res.status(200).send( { data: {...value} } );
-        })
-    
-        .catch( err => {
-            res.status(500).send( { error: err.message } );
-        })
+    catch(err){
+        console.log("POST ERR")
+        console.log(err)
+        res.status(500).send({"error" : err.message})
     }
 
 })
 
 //update one document if filter is matched
 //do not create a record if filter is not matched
-router.patch('/', (req, res) => {
+router.patch('/', async (req, res) => {
 
-    const options = {}
-    products.updateMany(req.query, {$set : req.body})
-
-    .then( value => {
-
-        res.status(200).send({data: {...value}})
-
-    })
-
-    .catch( err => {
+    try{
+        const options = {}
+        const query = req.query
+        const findRes = await products.find(query, options).toArray()
+        const updateRes = await products.updateMany(query, {$set : req.body})
+    
+        let updatedDocs;
+        if(updateRes.modifiedCount > 0){
+            const ids = findRes.map(item => item._id)
+            updatedDocs = await createResponseBody(ids)
+        }
+    
+        res.status(200).send(updatedDocs)
+    }
+    catch(err){
         res.status(500).send({"error": err.message})
-    })
+    }
+
     
 })
 
 //replace record if filter is matched
 //or insert new if filter is not matched
-router.put('/', (req, res) => {
+router.put('/', async (req, res) => {
 
     const options = {}
+    const query = req.query
 
-    products.find( req.query, options ).toArray()
-    .then( value => {
+    try{
+        const findRes = await products.find( query, options ).toArray()
 
-        let updateData = []
-
-        value.forEach(item => {
-            updateData.push(
-                    {     
+        let updateData = findRes.map(item => {
+                return    {     
                          replaceOne: {
                             filter: { _id: item._id },
                             replacement: { ...req.body }
                         }
                     }
-                )
         })
 
-        // updateData.forEach(item => console.log(item))
+        const bulkWrite_res = await products.bulkWrite(updateData)
 
-        products.bulkWrite(updateData)
-        .then(bulkWriteResponse => {
-            res.status(200).send({data: bulkWriteResponse})
-        })
-        .catch(bulkWriteError => {
-            res.status(500).send({"error": bulkWriteError.message})
-        })
+        let updatedDocs;
+        if(bulkWrite_res.modifiedCount > 0 || bulkWrite_res.upsertedCount > 0){
+            const ids = findRes.map(item => item._id)
+            updatedDocs = await createResponseBody(ids)
+        }
+        res.status(200).send(updatedDocs)
 
-    })
-    .catch((err) => {
-        res.status(500).send({"error": err.message})
-    })
+    }
+    catch(err){
+        res.status(500).send({"error" : err.message})
+    }
 
 })
 
@@ -124,9 +203,9 @@ router.delete('/', (req, res) => {
 
     products.deleteMany(req.query)
 
-    .then( value => {
+    .then( delete_res => {
 
-    res.status(200).send({data: {...value}})
+    res.status(200).send( delete_res )
 
     })
 
@@ -136,4 +215,4 @@ router.delete('/', (req, res) => {
 
 })
 
-export default router;
+export {router, createProduct};

@@ -1,8 +1,8 @@
-import ProductsRouter from './routes/Products.mjs'
+import {router as ProductsRouter} from './routes/Products.mjs'
 import ProductRouter from './routes/Product.mjs'
 import CategoriesRouter from './routes/Categories.mjs'
 import ProductsByCategoryRouter from './routes/ProductsByCategory.mjs'
-import ContactsRouter from './routes/Contacts/Contacts.mjs'
+import {router as ContactsRouter} from './routes/Contacts/Contacts.mjs'
 import express from 'express';
 import axios from 'axios'
 import db from './conn.mjs'
@@ -21,17 +21,6 @@ app.use('/contacts', ContactsRouter);
 app.listen(PORT, () => {
     console.log(`\nExpress listening on PORT ${PORT}`)
 })
-
-// console.log("make axios request")
-// axios.get('http://contacts:5000/contacts')
-// .then(response => {
-//   console.log(response.data)
-//   return
-// })
-// .catch(error => {
-//     console.log(error)
-//     return
-// });
 
 // ** INITIAL DATA
 const categoriesData = [
@@ -69,20 +58,18 @@ try{
 
     const contactsData = contactsResponse.data
 
-    console.log(contactsData)
-
     const productsWithContacts = productsData.map((product, index) => {
         const supplier = contactsData[index%contactsData.length]
-        return {...product, supplier: supplier.id}
+        return {...product, supplier}
     })
 
     const categoriesResponse = await categories.insertMany(categoriesData)
 
+    // const productsResponse = await products.insertMany(productsData)
     const productsResponse = await products.insertMany(productsWithContacts)
+    
     
 }
 catch(e){
     console.error(e)
 }
-
-//

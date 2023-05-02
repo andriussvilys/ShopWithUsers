@@ -1,0 +1,8 @@
+1) git submodule
+
+2) kuriant produkta sukuria supplieri
+
+3) grazinti sukurta objekta
+
+4) location header
+	pvz location/:id

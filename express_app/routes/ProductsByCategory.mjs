@@ -1,6 +1,7 @@
 import express from 'express'
 import db from '../conn.mjs'
 import { ObjectId } from 'mongodb';
+import { createProduct } from './Products.mjs';
 
 const router = express.Router();
 const categories = db.collection('categories');
@@ -23,6 +24,9 @@ export const getCategoryById = async (id) => {
         if(!category ){
             throw ({"message": `Category with id ${id} is not found`,"status": 400})
         }
+        if(!category.name ){
+            throw ({"message": `Category name not found`,"status": 400})
+        }
         return category
     }
     catch(err){
@@ -41,47 +45,54 @@ const getObjectId = (id) => {
     }
 }
 
+const createResponseBody = async (ids, collection) => {
+    return await Promise.all(
+        
+        ids.map(async (_id) => {
+            return await collection.findOne({_id})
+        })
+    )
+
+}
+
 router.get('/:id/products', async (req, res) => {
 
     try{
         const category = await getCategoryById(req.params.id)
-        console.log(category)
-
-        const productsResponse = await products.find( {category : category.name} ).toArray()
-
-        res.status(200).send({data: productsResponse})
+        const query = {...req.query, "category" : category.name}
+        const productsResponse = await products.find( query ).toArray()
+        console.log(productsResponse)
+        res.status(200).send(productsResponse)
 
     }
     catch(err){
-        console.log("GET THROW ERROR")
-        console.log(err)
         const status = err.status ? err.status : 500
         res.status(status).send({"error": err.message})
     }
 
 })
 
-router.post('/:id/products', async (req, res) => {
+router.post('/:id/products', async (req, res) => { 
 
     try{
         const category = await getCategoryById(req.params.id)
 
-        let productsResponse;
-
         if( Array.isArray(req.body)){
 
-            const body = req.body.map(elem => {return {...elem, category: category.name}})
+            const requestBody = req.body.map(elem => {return {...elem, category: category.name}})
 
-            productsResponse = await products.insertMany(body)
+            const responseBody = await createProduct(requestBody)
+
+            res.status(201).set('Location', `/products`).send( responseBody )
+    
         }
         else{
+            const requestBody = {...req.body, category: category.name}
 
-            productsResponse = await products.insertOne({...req.body, category: category.name})
-
+            const responseBody = await createProduct(requestBody)
+    
+            res.status(201).set('Location', `/products/${req.body.id}`).send( responseBody )
         }
-
-        res.status(200).send({data: productsResponse})
-
     }
     catch(err){
         const status = err.status ? err.status : 500
@@ -96,10 +107,22 @@ router.patch('/:id/products', async (req, res) => {
 
     try{
         const category = await getCategoryById(req.params.id)
+        
+        const query = {...req.query, "category" : category.name }
+        //find products that match initial query
+        const findRes = await products.find(query).toArray()
+        
+        const updateRes = await products.updateMany(query, {$set : {...req.body}})
 
-        const productsResponse = await products.updateMany({category: category.name}, {$set : req.body})
+        let result = []
+        if(updateRes.modifiedCount > 0){
+            const ids = findRes.map(elem => {
+                return elem._id
+            })
+            result = await createResponseBody(ids, products)
+        }
 
-        res.status(200).send({data: productsResponse})
+        res.status(200).send(result)
 
     }
     catch(err){
@@ -117,20 +140,29 @@ router.put('/:id/products', async (req, res) => {
 
         const category = await getCategoryById(req.params.id)
 
-        const productsResponse = await products.find( {category : category.name} ).toArray()
+        const query = {...req.query, "category" : category.name }
+        //find products that match initial query
+        const findRes = await products.find(query).toArray()
+
+        const productsResponse = await products.find( query ).toArray()
 
         const updateData = productsResponse.map(product => {
             return {replaceOne: {
-                filter: { _id: product._id },
-                replacement: { ...req.body}
-                // replacement: { ...req.body, category : category.name }
+                    filter: { _id: product._id },
+                    replacement: { ...req.body}
                 }
             }
         })
 
-        const bulkWriteResponse = await products.bulkWrite(updateData)
+        const bulkWrite_res = await products.bulkWrite(updateData)
 
-        res.status(200).send({data: bulkWriteResponse})
+        let updatedDocs;
+        if(bulkWrite_res.modifiedCount > 0 || bulkWrite_res.upsertedCount > 0){
+            const ids = findRes.map(item => item._id)
+            updatedDocs = await createResponseBody(ids, products)
+        }
+
+        res.status(200).send(updatedDocs)
 
     }
     catch(err){
@@ -146,38 +178,15 @@ router.delete('/:id/products', async (req, res) => {
         const category = await getCategoryById(req.params.id)
 
         const productsResponse = await products.deleteMany({category : category.name})
-
-        res.status(200).send({data: productsResponse})
+        console.log("products by category")
+        console.log(productsResponse)
+        res.status(200).send(productsResponse)
 
     }
     catch(err){
         const status = err.status ? err.status : 500
         res.status(status).send({"error": err.message})
     }
-
-    // const options = {}
-    // const query = {_id : new ObjectId(req.params.id), ...req.params.query}
-
-    // categories.findOne(query, options)
-    // .then(response => {
-
-    //     products.deleteMany({category : response.name})
-
-    //     .then( value => {
-    
-    //         res.status(200).send({data: {...value}})
-    
-    //     })
-    
-    //     .catch( err => {
-    //         res.status(500).send({"error": err.message})
-    //     })
-    // })
-    // .catch(err => {
-    //     res.status(500).send({"error": err.message})
-    // })
-
-
 
 })
 
