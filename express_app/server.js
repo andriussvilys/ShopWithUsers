@@ -60,16 +60,14 @@ try{
 
     const productsWithContacts = productsData.map((product, index) => {
         const supplier = contactsData[index%contactsData.length]
-        return {...product, supplier}
+        return {...product, supplier : supplier.id}
     })
 
     const categoriesResponse = await categories.insertMany(categoriesData)
 
-    // const productsResponse = await products.insertMany(productsData)
     const productsResponse = await products.insertMany(productsWithContacts)
     
-    
 }
-catch(e){
-    console.error(e)
+catch(err){
+    console.error(err.message)
 }

@@ -1,3 +1,15 @@
+// 2XX — Success
+    // 201 — Created
+    // 202 — Accepted
+    // 204 — No Content
+// 3XX — Redirection
+// 4XX — Client Error
+    // 400 — Bad req
+    // 403 — Forbidden
+    // 404 — Not Found
+// 5XX — Server Error
+    // 503 — Service Unavailable
+
 import express from 'express'
 import db from '../conn.mjs'
 import {createContact, getContact} from './Contacts/Contacts.mjs'
@@ -7,14 +19,32 @@ const router = express.Router();
 const products = db.collection('products');
 
 const createResponseBody = async (ids) => {
-    console.log(ids)
-    return await Promise.all(
-        
-        ids.map(async (_id) => {
-            return await products.findOne({_id})
-        })
-    )
+    try{
+        return await Promise.all(
+            ids.map(async (_id) => {
+                // return await products.findOne({_id})
+                const product = await products.findOne({_id})
+    
+                let result = product
+                let contact = null;
+                if(product.supplier){
+                    const supplierId = (typeof product.supplier == "object") ? product.supplier.id : product.supplier
 
+                    contact = (await getContact(supplierId)).data
+                    result.supplier = contact
+                }
+    
+                return result
+    
+            })
+        )
+    }
+    catch(err){
+        throw({
+            message : "createResponseBody: " + err.message,
+            status : err.status ? err.status : 500
+        })
+    }
 }
 
 const isContactIdUnique = async (newId) => {
@@ -30,50 +60,53 @@ const isContactIdUnique = async (newId) => {
     catch(err){
         const status = err.status ? err.status : 500
         const message = err.message ? err.message : "Could not get contact details."
-        throw({message, status})
+        throw({"message" : "isContactIdUnique: " + message, status})
     }
 }
 
-const validateNewProduct = async (product) => {
+//if product supplier id unique, create a new supplier record
+const validateSupplier = async (product) => {
 
     try{
         let validatedProduct = product;
+
         if(product.supplier){
-    
-            const uniqueId = await isContactIdUnique(product.supplier.id)
-            console.log(`uniqueId ${product.supplier.id} : ${uniqueId}`)
-            if(uniqueId){
-                const createContactRes = await createContact(product.supplier)
-                validatedProduct.supplier = createContactRes.data
+            if(typeof product.supplier == "object"){
+                const uniqueId = await isContactIdUnique(product.supplier.id)
+                if(uniqueId){
+                    await createContact(product.supplier)
+                }
+            }
+            else if(typeof product.supplier == "number"){
+                const uniqueId = await isContactIdUnique(product.supplier)
+                if(uniqueId){
+                    throw {"message": `Non-existing supplier id provided (${product.supplier})`, "status" : 400}
+                }             
             }
             else{
-                const getContactRes = await getContact(product.supplier.id)
-                validatedProduct.supplier = getContactRes.data
+                throw {"message": `Invalid supplier data : ${product.supplier}`, "status" : 400}
             }
         }
         return validatedProduct
     }
     catch(err){
         const status = err.status ? err.status : 500
-        throw({"message": err.message, status})
+        throw({"message": "validateSupplier : " + err.message, status})
     }
 }
 
 const createProduct = async (reqBody) => {
-    const options = {}
-    console.log("createProduct : ---------------------------")
-    console.log(reqBody)
     try{
 
         if( Array.isArray(reqBody)){
 
-            const validatedReqBody = await Promise.all(
-                reqBody.map(async (product) => await validateNewProduct(product))
-                );
-
-            const insertRes = await products.insertMany(validatedReqBody, options)
+            await Promise.all(
+                reqBody.map(async newProduct => {
+                    await validateSupplier(newProduct)
+                })
+            )
+            const insertRes = await products.insertMany(reqBody)
             const insertedIds = Object.values(insertRes.insertedIds)
-
             const resBody =  await createResponseBody(insertedIds)
             
             return resBody
@@ -81,7 +114,7 @@ const createProduct = async (reqBody) => {
     
         else{
 
-            const validatedReqBody = await validateNewProduct(reqBody)
+            const validatedReqBody = await validateSupplier(reqBody)
             const insertRes = await  products.insertOne(validatedReqBody)
             const resBody = await  createResponseBody([insertRes.insertedId])
 
@@ -90,36 +123,43 @@ const createProduct = async (reqBody) => {
         }
     }
     catch(err){
-        // const status = err.status ? err.status : 500
-        const status = 500
-        throw({status, "message" : err.message})
+        const status = err.status ? err.status : 500
+        throw({status, "message" : "createProduct : " + err.message})
     }
 }
 
-// 2XX — Success
-    // 201 — Created
-    // 202 — Accepted
-    // 204 — No Content
-// 3XX — Redirection
-// 4XX — Client Error
-    // 400 — Bad req
-    // 403 — Forbidden
-    // 404 — Not Found
-// 5XX — Server Error
-    // 503 — Service Unavailable
+const getProducts = async (query) => {
+    try{
+
+        const productsRes = await products.find( query ).toArray()
+        const contactData = (await getContact()).data
+        const mappedProducts = productsRes.map(product => {
+            const contact = contactData.find(contact => contact.id == product.supplier)
+            const mappedProduct = {...product, supplier : contact}
+            return mappedProduct
+        })
+
+        return mappedProducts
+
+    }
+    catch(err){
+        const status = err.status ? err.status : 500
+        throw({"error" : "getProducts : " + err.message, status})
+    }
+
+}
+
 
 router.get('/', async (req, res) => {
 
-    const options = {}
+    try{
+        const mappedProducts = await getProducts(req.query);
+        res.status(200).send( mappedProducts )
 
-    products.find( req.query, options ).toArray()
-
-    .then( find_res => {
-        res.status(200).send( find_res )
-    })
-    .catch((err) => {
-        res.status(500).send({"error": err.message})
-    })
+    }
+    catch(err){
+        res.status(500).send(err.message)
+    }
 
 })
 
@@ -129,11 +169,10 @@ router.post('/', async (req, res) => {
     // if array of products provided in req.body
     try{
         const resBody = await createProduct(req.body)
-        res.status(201).send( resBody )
+        const location = resBody.length > 1 ? '/products' : `products/${resBody[0]._id}`
+        res.status(201).set("Location", location).send( resBody )
     }
     catch(err){
-        console.log("POST ERR")
-        console.log(err)
         res.status(500).send({"error" : err.message})
     }
 
@@ -215,4 +254,4 @@ router.delete('/', (req, res) => {
 
 })
 
-export {router, createProduct};
+export {router, createProduct, getProducts};

@@ -1,7 +1,7 @@
 import express from 'express'
 import db from '../conn.mjs'
 import { ObjectId } from 'mongodb';
-import { createProduct } from './Products.mjs';
+import { createProduct, getProducts } from './Products.mjs';
 
 const router = express.Router();
 const categories = db.collection('categories');
@@ -60,8 +60,8 @@ router.get('/:id/products', async (req, res) => {
     try{
         const category = await getCategoryById(req.params.id)
         const query = {...req.query, "category" : category.name}
-        const productsResponse = await products.find( query ).toArray()
-        console.log(productsResponse)
+
+        const productsResponse = await getProducts(query)
         res.status(200).send(productsResponse)
 
     }
@@ -75,24 +75,22 @@ router.get('/:id/products', async (req, res) => {
 router.post('/:id/products', async (req, res) => { 
 
     try{
+        let requestBody_temp = req.body;
+
+        if( !Array.isArray(req.body)){
+
+            requestBody_temp = [req.body]
+    
+        }
+
         const category = await getCategoryById(req.params.id)
+        const requestBody = requestBody_temp.map(product => {return {...product, category: category.name}})
 
-        if( Array.isArray(req.body)){
+        const resBody = await createProduct(requestBody)
 
-            const requestBody = req.body.map(elem => {return {...elem, category: category.name}})
+        const location = resBody.length > 1 ? '/products' : `products/${resBody[0]._id}`
+        res.status(201).set("Location", location).send( resBody )
 
-            const responseBody = await createProduct(requestBody)
-
-            res.status(201).set('Location', `/products`).send( responseBody )
-    
-        }
-        else{
-            const requestBody = {...req.body, category: category.name}
-
-            const responseBody = await createProduct(requestBody)
-    
-            res.status(201).set('Location', `/products/${req.body.id}`).send( responseBody )
-        }
     }
     catch(err){
         const status = err.status ? err.status : 500
@@ -178,8 +176,7 @@ router.delete('/:id/products', async (req, res) => {
         const category = await getCategoryById(req.params.id)
 
         const productsResponse = await products.deleteMany({category : category.name})
-        console.log("products by category")
-        console.log(productsResponse)
+
         res.status(200).send(productsResponse)
 
     }

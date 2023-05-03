@@ -1,6 +1,8 @@
 import express from 'express'
 import db from '../conn.mjs'
 import { ObjectId } from 'mongodb';
+import {getContact} from './Contacts/Contacts.mjs'
+import { getProducts } from './Products.mjs';
 
 const router = express.Router();
 const products = db.collection('products');
@@ -12,16 +14,17 @@ const products = db.collection('products');
 router.get('/:id', async (req, res) => {
 
 
-    const query = {_id: new ObjectId(req.params.id), ...req.params.query}
+    try{
 
-    products.findOne(query, {})
-    .then( value => {
-        res.status(200).send( value )
-    })
+        const query = {_id: new ObjectId(req.params.id), ...req.params.query}
 
-    .catch((err) => {
-        res.status(500).send(  { error: err.message });
-    })
+        const resBody = await getProducts(query)
+        
+        res.status(200).send( resBody )
+    }
+    catch(err){
+        res.status(500).send({"error" : err.message})
+    }
 
 })
 
@@ -61,8 +64,6 @@ router.put('/:id', async (req, res) => {
         let updatedDoc = {}
         if(replaceRes.modifiedCount > 0 || replaceRes.upsertedCount > 0){
             updatedDoc = await products.findOne({_id : new ObjectId(req.params.id)})
-            console.log("updatedDoc")
-            console.log(updatedDoc)
         }
 
         res.status(200).send( updatedDoc )

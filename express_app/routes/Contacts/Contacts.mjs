@@ -20,7 +20,7 @@ const getContact = async (id) => {
     catch(err){
         const status = err.response && err.response.status ? err.response.status : (err.status ? err.status : 500)
         const message = err.response && err.response.data ? err.response.data : err.message 
-        throw({status, message})
+        throw({status, message : "getContact : " + message})
     }
 }
 
@@ -33,7 +33,7 @@ const createContact = async (contactObj) => {
     catch(err){
         const status = err.response && err.response.status ? err.response.status : (err.status ? err.status : 500)
         const message = err.response && err.response.data ? err.response.data : err.message 
-        throw({status, message})
+        throw({status, message : "createContact : " + message})
     }
 }
 

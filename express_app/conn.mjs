@@ -11,7 +11,7 @@ try{
     conn = await client.connect({ useNewUrlParser: true });
 }
 catch (err){
-    console.error(err)
+    throw err
 }
 
 let db = conn.db('Shop');

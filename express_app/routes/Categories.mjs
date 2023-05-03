@@ -211,11 +211,9 @@ router.patch('/:id', async (req, res) => {
         const updateRes = await categories.updateOne(query, {$set : req.body}, options)
     
         let updatedDoc = {}
-        console.log(updateRes)
         if(updateRes.modifiedCount > 0){
             const findRes = await categories.findOne(query)
             updatedDoc = findRes
-            console.log(updatedDoc)
         }
     
         res.status(200).send( updatedDoc )
