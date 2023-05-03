@@ -29,10 +29,12 @@ sample contact resource data:\
     "name": "Jake",\
     "number": "+37065841738",\
     "email": "jakevan@mail.com"\
-}\
+}
 
 For contacts resource, all columns are mandatory.
 To post/put contact, id and at least one other column must be unique
+
+contacts API taken from https://github.com/augkik/contacts.git
 
 ### LAUNCH CONTAINER
 
