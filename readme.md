@@ -22,14 +22,14 @@ Shop contains products, products have categories and contacts (suppliers)
 -- GET /contacts/:id?expand=products
 - uses PORT 80
 
-sample contact resource data:
-{
-    "id": 12345,
-    "surname": "Vangogh",
-    "name": "Jake",
-    "number": "+37065841738",
-    "email": "jakevan@mail.com"
-}
+sample contact resource data:\
+{\
+    "id": 12345,\
+    "surname": "Vangogh",\
+    "name": "Jake",\
+    "number": "+37065841738",\
+    "email": "jakevan@mail.com"\
+}\
 
 For contacts resource, all columns are mandatory.
 To post/put contact, id and at least one other column must be unique
